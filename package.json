@@ -4,7 +4,9 @@
   "description": "A microservice to display quick product snapshots to merchants.",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "lint": "eslint .",
+    "format": "eslint . --fix"
   },
   "dependencies": {
     "body-parser": "^2.2.2",
@@ -12,10 +14,13 @@
     "express": "^5.2.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/body-parser": "^1.19.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "typescript": "^5.9.3"
+    "eslint": "^9.39.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.53.0"
   },
   "private": true
 }
