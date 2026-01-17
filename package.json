@@ -1,0 +1,21 @@
+{
+  "name": "patterson-shopify-product-summary",
+  "version": "1.0.0",
+  "description": "A microservice to display quick product snapshots to merchants.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.5",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/body-parser": "^1.19.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "typescript": "^5.9.3"
+  },
+  "private": true
+}
