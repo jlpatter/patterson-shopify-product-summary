@@ -3,9 +3,13 @@ services:
     build:
       context: .
     container_name: "psps-node"
+    depends_on:
+      - redis
     ports:
       - "3001:3001"
     environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - SHOP=${SHOP}
       - ACCESS_TOKEN=${ACCESS_TOKEN}
 
