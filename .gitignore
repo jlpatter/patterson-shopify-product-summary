@@ -1,3 +1,4 @@
+# This is stuff I copied-pasted from another Node.js project
 /tmp
 /out-tsc
 
@@ -9,4 +10,7 @@ yarn-error.log*
 .pnp.js
 .DS_Store
 
+# This is stuff I've added
 .idea/
+.env
+dist/

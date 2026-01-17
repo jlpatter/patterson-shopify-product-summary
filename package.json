@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "lint": "eslint .",
-    "format": "eslint . --fix"
+    "lint": "tsc --noEmit && eslint .",
+    "format": "tsc --noEmit && eslint . --fix"
   },
   "dependencies": {
     "body-parser": "^2.2.2",

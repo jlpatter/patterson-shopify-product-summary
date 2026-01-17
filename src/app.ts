@@ -12,7 +12,7 @@ app.use(bodyParser.json());
 app.use(cors());
 
 // Routes
-app.get('/products', productsRouter);
+app.use('/products', productsRouter);
 app.get('/api-stats', getAPIStats);
 
 // Server
