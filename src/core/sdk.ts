@@ -15,11 +15,6 @@ export const getProducts = async (_limit?: number, _cursor?: string): Promise<Pr
                     priceRangeV2 {
                         minVariantPrice {
                             amount
-                            currencyCode
-                        }
-                        maxVariantPrice {
-                            amount
-                            currencyCode
                         }
                     }
                     totalInventory
