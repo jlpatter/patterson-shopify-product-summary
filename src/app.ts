@@ -12,6 +12,10 @@ app.use(bodyParser.json());
 app.use(cors());
 
 // Routes
+// Add a healthcheck endpoint for automatically standing instances back up that have failed.
+app.get("/health", (_req, resp) => {
+    resp.sendStatus(200);
+});
 app.use('/products', productsRouter);
 app.get('/api-stats', getAPIStats);
 
