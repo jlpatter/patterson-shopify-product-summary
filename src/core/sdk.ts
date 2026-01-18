@@ -121,16 +121,22 @@ export const getProducts = async (
     }
     const finalCursor = cursor ? Number(cursor) : 1;
     const finalLimit = limit ? limit : 100;
-    const productIds = await redisClient.zRangeByScore(
+    // For stuff about zRanges, see here: https://redis.io/docs/latest/commands/zrangebyscore/
+    const productIdsWithScores = await redisClient.zRangeByScoreWithScores(
         ALL_PRODUCTS_ZSET_REDIS_KEY,
         `(${finalCursor}`,
         "+inf",
         { LIMIT: { offset: 0, count: finalLimit } }
     );
     const pipeline = redisClient.multi();
-    productIds.forEach((productId) => pipeline.json.get(productId));
+    productIdsWithScores.forEach((productIdsWithScore) =>
+        pipeline.json.get(productIdsWithScore.value)
+    );
 
-    return (await pipeline.exec()) as unknown as ProductResponse;
+    return {
+        next_page: productIdsWithScores[productIdsWithScores.length - 1].score,
+        products: (await pipeline.exec()) as unknown as Product[],
+    };
 };
 
 export const getProductById = async (id: string): Promise<Product> => {

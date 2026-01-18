@@ -2,7 +2,10 @@ export type ProductZScore = {
     value: string;
     score: number;
 };
-export type ProductResponse = Product[];
+export type ProductResponse = {
+    next_page: number;
+    products: Product[];
+};
 
 export type ShopifyProduct = {
     id: string;
