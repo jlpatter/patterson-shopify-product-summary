@@ -10,6 +10,7 @@ import {
     TOKEN
 } from "./constants";
 import {RedisClientType} from "redis";
+import {getHashString} from "./utils";
 
 const saveShopifyStats = async (redisClient: RedisClientType, duration: number) => {
     // Get Shopify stats from redis cache
@@ -32,7 +33,7 @@ const postGraphQLQuery = async (query: string) => {
     // Use Redis for caching.
     const redisClient = await getRedisClient();
     // TODO: Split this out for each function!
-    const cachedShopifyData = await redisClient.get(query);
+    const cachedShopifyData = await redisClient.get(getHashString(query));
 
     if (!cachedShopifyData) {
         // TODO: I should set up a worker to handle asynchronously so it doesn't bog down the response time!
@@ -54,7 +55,7 @@ const postGraphQLQuery = async (query: string) => {
         });
 
         // Cache results from Shopify call
-        await redisClient.set(query, JSON.stringify(shopifyResp.data), {EX: REDIS_TIMEOUT});
+        await redisClient.set(getHashString(query), JSON.stringify(shopifyResp.data), {EX: REDIS_TIMEOUT});
         console.log("Called Shopify API and then cached value.");
         return shopifyResp.data;
     }
