@@ -30,7 +30,7 @@ const postGraphQLQuery = async (query: string) => {
     }
     console.log("Using cached value!");
     return JSON.parse(value);
-}
+};
 
 export const getProducts = async (_limit?: number, _cursor?: string): Promise<ProductResponse> => {
     // TODO: Implement `limit` and `cursor` here!
@@ -63,9 +63,9 @@ export const getProducts = async (_limit?: number, _cursor?: string): Promise<Pr
             "inventory": p.totalInventory,
             "created_at": p.createdAt
         });
-    })
+    });
     return products;
-}
+};
 
 export const getProductById = async (id: string): Promise<Product> => {
     const query = `
@@ -98,8 +98,8 @@ export const getProductById = async (id: string): Promise<Product> => {
         "inventory": shopifyProduct.totalInventory,
         "created_at": shopifyProduct.createdAt
     };
-}
+};
 
 export const getStats = async (): Promise<ProductStats> => {
     throw new Error("Need to implement!");
-}
+};

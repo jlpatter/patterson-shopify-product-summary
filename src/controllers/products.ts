@@ -4,7 +4,7 @@ import {getProductById, getProducts} from "../core/sdk";
 export const getProductsController = async (req: Request, res: Response, next: NextFunction) => {
     res.send(await getProducts());
     next();
-}
+};
 
 export const getProductDetailController = async (req: Request, res: Response, next: NextFunction) => {
     const id = req.params.id;
@@ -15,4 +15,4 @@ export const getProductDetailController = async (req: Request, res: Response, ne
     // NOTE: `id` needs to be in the form `1234567890`, not `gid://shopify/Product/1234567890`
     res.send(await getProductById(id));
     next();
-}
+};

@@ -1,7 +1,7 @@
-import express from 'express';
-import { productsRouter } from './routes/products';
-import bodyParser from 'body-parser';
-import cors from 'cors';
+import express from "express";
+import { productsRouter } from "./routes/products";
+import bodyParser from "body-parser";
+import cors from "cors";
 import {getAPIStats, measureAPIStatsMiddleware} from "./controllers/base";
 
 const app = express();
@@ -17,8 +17,8 @@ app.use(measureAPIStatsMiddleware);
 app.get("/health", (_req, resp) => {
     resp.sendStatus(200);
 });
-app.use('/products', productsRouter);
-app.get('/api-stats', getAPIStats);
+app.use("/products", productsRouter);
+app.get("/api-stats", getAPIStats);
 
 // Server
 app.listen(PORT, () => {
