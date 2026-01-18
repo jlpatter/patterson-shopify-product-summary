@@ -56,7 +56,7 @@ const postGraphQLQuery = async (redisClient: RedisClientType, query: string) => 
     return shopifyResp.data;
 };
 
-const getAllProductsAndCache = async (redisClient: RedisClientType) => {
+const cacheAllProducts = async (redisClient: RedisClientType) => {
     // TODO: I'm using 100 here since there are less than 100 products, but ideally we should bulk GET
     //  all the products. See here: https://shopify.dev/docs/api/usage/bulk-operations/imports
     const query = `
@@ -78,19 +78,16 @@ const getAllProductsAndCache = async (redisClient: RedisClientType) => {
     `;
     const data = await postGraphQLQuery(redisClient, query);
 
-    const products: Product[] = [];
     const productsZSet: ProductZScore[] = [];
     const pipeline = redisClient.multi();
     data.data.products.nodes.forEach((p: ShopifyProduct, index: number) => {
-        const product = {
+        pipeline.json.set(p.id, "$", {
             "id": p.id,
             "title": p.title,
             "price": p.priceRangeV2.minVariantPrice.amount,
             "inventory": p.totalInventory,
             "created_at": p.createdAt
-        };
-        products.push(product);
-        pipeline.json.set(p.id, "$", product);
+        });
         productsZSet.push({
             "value": p.id,
             "score": index + 1,
@@ -99,15 +96,13 @@ const getAllProductsAndCache = async (redisClient: RedisClientType) => {
 
     pipeline.zAdd(ALL_PRODUCTS_ZSET_REDIS_KEY, productsZSet);
     await pipeline.exec();
-
-    return products;
 };
 
 export const getProducts = async (limit?: number, cursor?: string): Promise<ProductResponse> => {
     const redisClient = await getRedisClient();
 
     if (!await redisClient.exists(ALL_PRODUCTS_ZSET_REDIS_KEY)) {
-        return await getAllProductsAndCache(redisClient);
+        await cacheAllProducts(redisClient);
     }
     const finalCursor = cursor ? Number(cursor): 1;
     const finalLimit = limit ? limit: 100;
@@ -119,40 +114,19 @@ export const getProducts = async (limit?: number, cursor?: string): Promise<Prod
 };
 
 export const getProductById = async (id: string): Promise<Product> => {
-    // TODO: Use the all products cache to get by id!
     const redisClient = await getRedisClient();
 
-    const query = `
-        query {
-            product(id: "gid://shopify/Product/${id}") {
-                id
-                    title
-                    priceRangeV2 {
-                        minVariantPrice {
-                            amount
-                            currencyCode
-                        }
-                        maxVariantPrice {
-                            amount
-                            currencyCode
-                        }
-                    }
-                    totalInventory
-                    createdAt
-            }
-        }
-    `;
-    // TODO: Cache this!
-    const data = await postGraphQLQuery(redisClient, query);
+    if (!await redisClient.exists(ALL_PRODUCTS_ZSET_REDIS_KEY)) {
+        await cacheAllProducts(redisClient);
+    }
 
-    const shopifyProduct: ShopifyProduct = data.product;
-    return {
-        "id": shopifyProduct.id,
-        "title": shopifyProduct.title,
-        "price": shopifyProduct.priceRangeV2.minVariantPrice.amount,
-        "inventory": shopifyProduct.totalInventory,
-        "created_at": shopifyProduct.createdAt
-    };
+    const product = await redisClient.json.get(`gid://shopify/Product/${id}`) as Product | null;
+
+    if (!product) {
+        throw new Error("ERROR: Product id not found!");
+    }
+
+    return product;
 };
 
 export const getStats = async (): Promise<ProductStats> => {
@@ -162,7 +136,7 @@ export const getStats = async (): Promise<ProductStats> => {
 
     if (!endpointStats || !shopifyStats) {
         // TODO: Figure out if this is needed, otherwise make the error message better.
-        throw new Error("Stats are missing!");
+        throw new Error("ERROR: Stats are missing!");
     }
 
     return {
