@@ -82,6 +82,9 @@ export const cacheAllProducts = async () => {
     `;
     const data = await postGraphQLQuery(redisClient, query);
 
+    // Re-build the set from scratch. This allows rankings to be updated properly.
+    await redisClient.del([ALL_PRODUCTS_ZSET_REDIS_KEY]);
+
     const productsZSet: ProductZScore[] = [];
     const pipeline = redisClient.multi();
     data.data.products.nodes.forEach((p: ShopifyProduct, index: number) => {
