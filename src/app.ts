@@ -2,7 +2,7 @@ import express from 'express';
 import { productsRouter } from './routes/products';
 import bodyParser from 'body-parser';
 import cors from 'cors';
-import {getAPIStats} from "./controllers/base";
+import {getAPIStats, measureAPIStatsMiddleware} from "./controllers/base";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -10,6 +10,7 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(bodyParser.json());
 app.use(cors());
+app.use(measureAPIStatsMiddleware);
 
 // Routes
 // Add a healthcheck endpoint for automatically standing instances back up that have failed.
