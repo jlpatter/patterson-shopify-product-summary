@@ -6,6 +6,8 @@ import {
     getStatsController,
     measureAPIStatsMiddleware,
 } from "./controllers/base";
+import { cacheAllProducts } from "./core/utils";
+import { REDIS_CACHE_ALL_PRODUCTS_INTERVAL } from "./core/constants";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -27,3 +29,11 @@ app.get("/api-stats", getStatsController);
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+// TODO: add a locking mechanism in case there are multiple instances of node running!
+// Cache all products initially to avoid first page loads being slow
+cacheAllProducts().catch(console.error);
+// Continue caching all products occasionally to keep data up to date.
+setInterval(() => {
+    cacheAllProducts().catch(console.error);
+}, REDIS_CACHE_ALL_PRODUCTS_INTERVAL);

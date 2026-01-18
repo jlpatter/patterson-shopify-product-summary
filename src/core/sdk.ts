@@ -3,111 +3,25 @@ import {
     Product,
     ProductResponse,
     ProductStats,
-    ProductZScore,
-    ShopifyProduct,
     ShopifyStats,
 } from "./types";
-import axios from "axios";
 import { getRedisClient } from "./redis_client";
 import {
     ENDPOINT_STATS_REDIS_KEY,
-    SHOP,
-    SHOPIFY_API_VERSION,
     SHOPIFY_STATS_REDIS_KEY,
-    TOKEN,
     ALL_PRODUCTS_ZSET_REDIS_KEY,
 } from "./constants";
+import { cacheAllProducts } from "./utils";
 import { RedisClientType } from "redis";
 
-const saveShopifyStats = async (
-    redisClient: RedisClientType,
-    duration: number
-) => {
-    // Get Shopify stats from redis cache
-    let shopifyStats: ShopifyStats | null = (await redisClient.json.get(
-        SHOPIFY_STATS_REDIS_KEY
-    )) as ShopifyStats | null;
-    if (!shopifyStats) {
-        shopifyStats = {
-            average_shopify_call_responsetime_ms: 0,
-            total_shopify_api_calls: 0,
-        };
+const checkAllProducts = async (redisClient: RedisClientType) => {
+    if (!(await redisClient.exists(ALL_PRODUCTS_ZSET_REDIS_KEY))) {
+        // NOTE: This is a fail-safe just in case initial caching in `app.ts` fails!
+        console.warn(
+            "WARNING: Lazy-load caching just occurred, initial caching must have failed!"
+        );
+        await cacheAllProducts();
     }
-
-    // Then, update them
-    shopifyStats.average_shopify_call_responsetime_ms =
-        (shopifyStats.average_shopify_call_responsetime_ms *
-            shopifyStats.total_shopify_api_calls +
-            duration) /
-        (shopifyStats.total_shopify_api_calls + 1);
-    shopifyStats.total_shopify_api_calls++;
-    await redisClient.json.set(SHOPIFY_STATS_REDIS_KEY, "$", shopifyStats);
-};
-
-const postGraphQLQuery = async (
-    redisClient: RedisClientType,
-    query: string
-) => {
-    const start = Date.now();
-    const shopifyResp = await axios.post(
-        `https://${SHOP}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`,
-        { query },
-        {
-            headers: {
-                "X-Shopify-Access-Token": TOKEN,
-                "Content-Type": "application/json",
-            },
-        }
-    );
-    const duration = Date.now() - start;
-    // Save Shopify Stats
-    saveShopifyStats(redisClient, duration).catch((err) => {
-        throw new Error("ERROR: Unable to save Shopify timing stats: " + err);
-    });
-
-    return shopifyResp.data;
-};
-
-const cacheAllProducts = async (redisClient: RedisClientType) => {
-    // TODO: I'm using 100 here since there are less than 100 products, but ideally we should bulk GET
-    //  all the products. See here: https://shopify.dev/docs/api/usage/bulk-operations/imports
-    const query = `
-        query {
-            products(first: 100, sortKey: TITLE) {
-                nodes {
-                    id
-                    title
-                    priceRangeV2 {
-                        minVariantPrice {
-                            amount
-                        }
-                    }
-                    totalInventory
-                    createdAt
-                }
-            }
-        }
-    `;
-    const data = await postGraphQLQuery(redisClient, query);
-
-    const productsZSet: ProductZScore[] = [];
-    const pipeline = redisClient.multi();
-    data.data.products.nodes.forEach((p: ShopifyProduct, index: number) => {
-        pipeline.json.set(p.id, "$", {
-            id: p.id,
-            title: p.title,
-            price: p.priceRangeV2.minVariantPrice.amount,
-            inventory: p.totalInventory,
-            created_at: p.createdAt,
-        });
-        productsZSet.push({
-            value: p.id,
-            score: index + 1,
-        });
-    });
-
-    pipeline.zAdd(ALL_PRODUCTS_ZSET_REDIS_KEY, productsZSet);
-    await pipeline.exec();
 };
 
 export const getProducts = async (
@@ -116,9 +30,8 @@ export const getProducts = async (
 ): Promise<ProductResponse> => {
     const redisClient = await getRedisClient();
 
-    if (!(await redisClient.exists(ALL_PRODUCTS_ZSET_REDIS_KEY))) {
-        await cacheAllProducts(redisClient);
-    }
+    await checkAllProducts(redisClient);
+
     const finalCursor = cursor ? Number(cursor) : 1;
     const finalLimit = limit ? limit : 100;
     // For stuff about zRanges, see here: https://redis.io/docs/latest/commands/zrangebyscore/
@@ -170,9 +83,7 @@ export const getProducts = async (
 export const getProductById = async (id: string): Promise<Product> => {
     const redisClient = await getRedisClient();
 
-    if (!(await redisClient.exists(ALL_PRODUCTS_ZSET_REDIS_KEY))) {
-        await cacheAllProducts(redisClient);
-    }
+    await checkAllProducts(redisClient);
 
     const product = (await redisClient.json.get(
         `gid://shopify/Product/${id}`
