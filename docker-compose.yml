@@ -14,7 +14,7 @@ services:
       - ACCESS_TOKEN=${ACCESS_TOKEN}
 
   redis:
-    image: redis:latest
+    image: redis/redis-stack-server:latest
     container_name: "psps-redis"
     ports:
       - "6379:6379"

@@ -13,27 +13,25 @@ import {RedisClientType} from "redis";
 
 const saveShopifyStats = async (redisClient: RedisClientType, duration: number) => {
     // Get Shopify stats from redis cache
-    let shopifyStats: ShopifyStats;
-    const shopifyStatsStr = await redisClient.get(SHOPIFY_STATS_REDIS_KEY);
-    if (!shopifyStatsStr) {
+    let shopifyStats: ShopifyStats | null = await redisClient.json.get(SHOPIFY_STATS_REDIS_KEY) as ShopifyStats | null;
+    if (!shopifyStats) {
         shopifyStats = {
             "average_shopify_call_responsetime_ms": 0,
             "total_shopify_api_calls": 0,
         };
-    } else {
-        shopifyStats = JSON.parse(shopifyStatsStr);
     }
 
     // Then, update them
     shopifyStats.average_shopify_call_responsetime_ms = ((shopifyStats.average_shopify_call_responsetime_ms * shopifyStats.total_shopify_api_calls) + duration) / (shopifyStats.total_shopify_api_calls + 1);
     shopifyStats.total_shopify_api_calls++;
     // NOTE: We are not setting an expiration on this because it should remain persistent.
-    await redisClient.set(SHOPIFY_STATS_REDIS_KEY, JSON.stringify(shopifyStats));
+    await redisClient.json.set(SHOPIFY_STATS_REDIS_KEY, "$", shopifyStats);
 };
 
 const postGraphQLQuery = async (query: string) => {
     // Use Redis for caching.
     const redisClient = await getRedisClient();
+    // TODO: Split this out for each function!
     const cachedShopifyData = await redisClient.get(query);
 
     if (!cachedShopifyData) {
@@ -134,16 +132,13 @@ export const getProductById = async (id: string): Promise<Product> => {
 
 export const getStats = async (): Promise<ProductStats> => {
     const redisClient = await getRedisClient();
-    const endpointStatsStr = await redisClient.get(ENDPOINT_STATS_REDIS_KEY);
-    const shopifyStatsStr = await redisClient.get(SHOPIFY_STATS_REDIS_KEY);
+    const endpointStats = await redisClient.json.get(ENDPOINT_STATS_REDIS_KEY) as EndpointStats | null;
+    const shopifyStats = await redisClient.json.get(SHOPIFY_STATS_REDIS_KEY) as ShopifyStats | null;
 
-    if (!endpointStatsStr || !shopifyStatsStr) {
+    if (!endpointStats || !shopifyStats) {
         // TODO: Figure out if this is needed, otherwise make the error message better.
         throw new Error("Stats are missing!");
     }
-
-    const endpointStats: EndpointStats = JSON.parse(endpointStatsStr);
-    const shopifyStats: ShopifyStats = JSON.parse(shopifyStatsStr);
 
     return {
         ...endpointStats,

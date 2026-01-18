@@ -11,9 +11,8 @@ export const measureAPIStatsMiddleware = async (req: Request, res: Response, nex
         if (req.originalUrl !== "/favicon.ico") {
             // Get endpoint stats from redis cache
             const redisClient = await getRedisClient();
-            let endpointStats: EndpointStats;
-            const endpointStatsStr = await redisClient.get(ENDPOINT_STATS_REDIS_KEY);
-            if (!endpointStatsStr) {
+            let endpointStats = await redisClient.json.get(ENDPOINT_STATS_REDIS_KEY) as EndpointStats | null;
+            if (!endpointStats) {
                 endpointStats = {
                     "endpoint_response_times_ms": {
                         "average": 0,
@@ -22,8 +21,6 @@ export const measureAPIStatsMiddleware = async (req: Request, res: Response, nex
                     },
                     "total_endpoint_calls": 0,
                 };
-            } else {
-                endpointStats = JSON.parse(endpointStatsStr);
             }
 
             // Then, update endpoint stats
@@ -32,8 +29,7 @@ export const measureAPIStatsMiddleware = async (req: Request, res: Response, nex
             endpointStats.endpoint_response_times_ms.average = ((endpointStats.endpoint_response_times_ms.average * endpointStats.total_endpoint_calls) + duration) / (endpointStats.total_endpoint_calls + 1);
             endpointStats.total_endpoint_calls++;
 
-            // NOTE: We are not setting an expiration on this because it should remain persistent.
-            await redisClient.set(ENDPOINT_STATS_REDIS_KEY, JSON.stringify(endpointStats));
+            await redisClient.json.set(ENDPOINT_STATS_REDIS_KEY, "$", endpointStats);
         }
     });
     next();
