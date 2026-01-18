@@ -2,7 +2,7 @@ import express from "express";
 import { productsRouter } from "./routes/products";
 import bodyParser from "body-parser";
 import cors from "cors";
-import {getAPIStats, measureAPIStatsMiddleware} from "./controllers/base";
+import {getStatsController, measureAPIStatsMiddleware} from "./controllers/base";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -18,7 +18,7 @@ app.get("/health", (_req, resp) => {
     resp.sendStatus(200);
 });
 app.use("/products", productsRouter);
-app.get("/api-stats", getAPIStats);
+app.get("/api-stats", getStatsController);
 
 // Server
 app.listen(PORT, () => {

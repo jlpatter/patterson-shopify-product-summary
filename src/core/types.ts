@@ -25,13 +25,18 @@ export type Product = {
     "created_at": string
 };
 
-export type ProductStats = {
+export type EndpointStats = {
     "endpoint_response_times_ms": {
         "average": number,
         "max": number,
         "min": number
     },
     "total_endpoint_calls": number,
+}
+
+export type ShopifyStats = {
     "average_shopify_call_responsetime_ms": number,
-    "total_shopify_api_calls": number
-};
+    "total_shopify_api_calls": number,
+}
+
+export type ProductStats = EndpointStats & ShopifyStats;
