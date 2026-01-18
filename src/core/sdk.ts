@@ -51,7 +51,9 @@ const postGraphQLQuery = async (query: string) => {
         );
         const duration = Date.now() - start;
         // Save Shopify Stats
-        await saveShopifyStats(redisClient, duration);
+        saveShopifyStats(redisClient, duration).catch(err => {
+            throw new Error("ERROR: Unable to save Shopify timing stats: " + err);
+        });
 
         // Cache results from Shopify call
         await redisClient.set(query, JSON.stringify(shopifyResp.data), {EX: REDIS_TIMEOUT});
