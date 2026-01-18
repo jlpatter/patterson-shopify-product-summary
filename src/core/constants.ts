@@ -4,5 +4,6 @@ export const SHOPIFY_API_VERSION = "2026-01";
 export const REDIS_TIMEOUT = 300;  // 5 minutes
 
 export const ALL_PRODUCTS_REDIS_KEY = "allProducts";
+export const ALL_PRODUCTS_ZSET_REDIS_KEY = ALL_PRODUCTS_REDIS_KEY + ":zset";
 export const ENDPOINT_STATS_REDIS_KEY = "endpointStats";
 export const SHOPIFY_STATS_REDIS_KEY = "shopifyStats";

@@ -1,3 +1,7 @@
+export type ProductZScore = {
+    "value": string,
+    "score": number,
+};
 export type ProductResponse = Product[];
 
 export type ShopifyProduct = {

@@ -2,7 +2,7 @@ import {Request, Response, NextFunction} from "express";
 import {getProductById, getProducts} from "../core/sdk";
 
 export const getProductsController = async (req: Request, res: Response, next: NextFunction) => {
-    res.send(await getProducts());
+    res.send(await getProducts(Number(req.query.limit), req.query.cursor as string | undefined));
     next();
 };
 

@@ -1,12 +1,21 @@
-import {EndpointStats, Product, ProductResponse, ProductStats, ShopifyProduct, ShopifyStats} from "./types";
+import {
+    EndpointStats,
+    Product,
+    ProductResponse,
+    ProductStats,
+    ProductZScore,
+    ShopifyProduct,
+    ShopifyStats
+} from "./types";
 import axios from "axios";
 import {getRedisClient} from "./redis_client";
 import {
-    ENDPOINT_STATS_REDIS_KEY, ALL_PRODUCTS_REDIS_KEY,
+    ENDPOINT_STATS_REDIS_KEY,
     SHOP,
     SHOPIFY_API_VERSION,
     SHOPIFY_STATS_REDIS_KEY,
-    TOKEN
+    TOKEN,
+    ALL_PRODUCTS_ZSET_REDIS_KEY
 } from "./constants";
 import {RedisClientType} from "redis";
 
@@ -70,33 +79,43 @@ const getAllProductsAndCache = async (redisClient: RedisClientType) => {
     const data = await postGraphQLQuery(redisClient, query);
 
     const products: Product[] = [];
-    data.data.products.nodes.forEach((p: ShopifyProduct) => {
-        products.push({
+    const productsZSet: ProductZScore[] = [];
+    const pipeline = redisClient.multi();
+    data.data.products.nodes.forEach((p: ShopifyProduct, index: number) => {
+        const product = {
             "id": p.id,
             "title": p.title,
             "price": p.priceRangeV2.minVariantPrice.amount,
             "inventory": p.totalInventory,
             "created_at": p.createdAt
+        };
+        products.push(product);
+        pipeline.json.set(p.id, "$", product);
+        productsZSet.push({
+            "value": p.id,
+            "score": index + 1,
         });
     });
 
-    await redisClient.json.set(ALL_PRODUCTS_REDIS_KEY, "$", products);
+    pipeline.zAdd(ALL_PRODUCTS_ZSET_REDIS_KEY, productsZSet);
+    await pipeline.exec();
 
     return products;
-}
+};
 
-export const getProducts = async (limit?: number, _cursor?: string): Promise<ProductResponse> => {
-    // TODO: Implement `cursor` here!
+export const getProducts = async (limit?: number, cursor?: string): Promise<ProductResponse> => {
     const redisClient = await getRedisClient();
 
-    const pathStr = limit ? "$[" + limit + ":]" : "$";
-    let products = await redisClient.json.get(ALL_PRODUCTS_REDIS_KEY, { path: pathStr }) as Product[] | null;
-    if (!products) {
-        const allProducts = await getAllProductsAndCache(redisClient);
-        products = limit ? allProducts.slice(0, limit) : allProducts;
+    if (!await redisClient.exists(ALL_PRODUCTS_ZSET_REDIS_KEY)) {
+        return await getAllProductsAndCache(redisClient);
     }
+    const finalCursor = cursor ? Number(cursor): 1;
+    const finalLimit = limit ? limit: 100;
+    const productIds = await redisClient.zRangeByScore(ALL_PRODUCTS_ZSET_REDIS_KEY, `(${finalCursor}`, "+inf", { LIMIT: { offset: 0, count: finalLimit } });
+    const pipeline = redisClient.multi();
+    productIds.forEach(productId => pipeline.json.get(productId));
 
-    return products;
+    return await pipeline.exec() as unknown as ProductResponse;
 };
 
 export const getProductById = async (id: string): Promise<Product> => {
