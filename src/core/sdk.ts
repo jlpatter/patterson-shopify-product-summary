@@ -24,6 +24,11 @@ const checkAllProducts = async (redisClient: RedisClientType) => {
     }
 };
 
+/**
+ * Gets all the available products.
+ * @param limit limits the number of products returned in response.
+ * @param cursor starting location for pagination.
+ */
 export const getProducts = async (
     limit?: number,
     cursor?: string
@@ -80,6 +85,10 @@ export const getProducts = async (
     };
 };
 
+/**
+ * Get a specific product's details.
+ * @param id The id of the product to get. E.g. `1234567890`
+ */
 export const getProductById = async (id: string): Promise<Product> => {
     const redisClient = await getRedisClient();
 
@@ -96,6 +105,9 @@ export const getProductById = async (id: string): Promise<Product> => {
     return product;
 };
 
+/**
+ * Get some stats about this API/SDK. Includes timing and number of calls.
+ */
 export const getStats = async (): Promise<ProductStats> => {
     const redisClient = await getRedisClient();
     const endpointStats = (await redisClient.json.get(
