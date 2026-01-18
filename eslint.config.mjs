@@ -1,8 +1,9 @@
 // @ts-check
 
 import eslint from "@eslint/js";
-import {defineConfig, globalIgnores} from "eslint/config";
+import { defineConfig, globalIgnores } from "eslint/config";
 import tseslint from "typescript-eslint";
+import eslintConfigPrettier from "eslint-config-prettier";
 
 export default defineConfig(
     eslint.configs.recommended,
@@ -25,8 +26,11 @@ export default defineConfig(
             ],
 
             // These are just personal preferences.
-            "semi": ["error", "always"],
-            "quotes": ["error", "double"],
+            semi: ["error", "always"],
+            quotes: ["error", "double"],
         },
     },
+
+    // NOTE: This needs to go last to override other rules
+    eslintConfigPrettier
 );

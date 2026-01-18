@@ -5,37 +5,49 @@ import {
     ProductStats,
     ProductZScore,
     ShopifyProduct,
-    ShopifyStats
+    ShopifyStats,
 } from "./types";
 import axios from "axios";
-import {getRedisClient} from "./redis_client";
+import { getRedisClient } from "./redis_client";
 import {
     ENDPOINT_STATS_REDIS_KEY,
     SHOP,
     SHOPIFY_API_VERSION,
     SHOPIFY_STATS_REDIS_KEY,
     TOKEN,
-    ALL_PRODUCTS_ZSET_REDIS_KEY
+    ALL_PRODUCTS_ZSET_REDIS_KEY,
 } from "./constants";
-import {RedisClientType} from "redis";
+import { RedisClientType } from "redis";
 
-const saveShopifyStats = async (redisClient: RedisClientType, duration: number) => {
+const saveShopifyStats = async (
+    redisClient: RedisClientType,
+    duration: number
+) => {
     // Get Shopify stats from redis cache
-    let shopifyStats: ShopifyStats | null = await redisClient.json.get(SHOPIFY_STATS_REDIS_KEY) as ShopifyStats | null;
+    let shopifyStats: ShopifyStats | null = (await redisClient.json.get(
+        SHOPIFY_STATS_REDIS_KEY
+    )) as ShopifyStats | null;
     if (!shopifyStats) {
         shopifyStats = {
-            "average_shopify_call_responsetime_ms": 0,
-            "total_shopify_api_calls": 0,
+            average_shopify_call_responsetime_ms: 0,
+            total_shopify_api_calls: 0,
         };
     }
 
     // Then, update them
-    shopifyStats.average_shopify_call_responsetime_ms = ((shopifyStats.average_shopify_call_responsetime_ms * shopifyStats.total_shopify_api_calls) + duration) / (shopifyStats.total_shopify_api_calls + 1);
+    shopifyStats.average_shopify_call_responsetime_ms =
+        (shopifyStats.average_shopify_call_responsetime_ms *
+            shopifyStats.total_shopify_api_calls +
+            duration) /
+        (shopifyStats.total_shopify_api_calls + 1);
     shopifyStats.total_shopify_api_calls++;
     await redisClient.json.set(SHOPIFY_STATS_REDIS_KEY, "$", shopifyStats);
 };
 
-const postGraphQLQuery = async (redisClient: RedisClientType, query: string) => {
+const postGraphQLQuery = async (
+    redisClient: RedisClientType,
+    query: string
+) => {
     const start = Date.now();
     const shopifyResp = await axios.post(
         `https://${SHOP}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`,
@@ -49,7 +61,7 @@ const postGraphQLQuery = async (redisClient: RedisClientType, query: string) => 
     );
     const duration = Date.now() - start;
     // Save Shopify Stats
-    saveShopifyStats(redisClient, duration).catch(err => {
+    saveShopifyStats(redisClient, duration).catch((err) => {
         throw new Error("ERROR: Unable to save Shopify timing stats: " + err);
     });
 
@@ -82,15 +94,15 @@ const cacheAllProducts = async (redisClient: RedisClientType) => {
     const pipeline = redisClient.multi();
     data.data.products.nodes.forEach((p: ShopifyProduct, index: number) => {
         pipeline.json.set(p.id, "$", {
-            "id": p.id,
-            "title": p.title,
-            "price": p.priceRangeV2.minVariantPrice.amount,
-            "inventory": p.totalInventory,
-            "created_at": p.createdAt
+            id: p.id,
+            title: p.title,
+            price: p.priceRangeV2.minVariantPrice.amount,
+            inventory: p.totalInventory,
+            created_at: p.createdAt,
         });
         productsZSet.push({
-            "value": p.id,
-            "score": index + 1,
+            value: p.id,
+            score: index + 1,
         });
     });
 
@@ -98,29 +110,39 @@ const cacheAllProducts = async (redisClient: RedisClientType) => {
     await pipeline.exec();
 };
 
-export const getProducts = async (limit?: number, cursor?: string): Promise<ProductResponse> => {
+export const getProducts = async (
+    limit?: number,
+    cursor?: string
+): Promise<ProductResponse> => {
     const redisClient = await getRedisClient();
 
-    if (!await redisClient.exists(ALL_PRODUCTS_ZSET_REDIS_KEY)) {
+    if (!(await redisClient.exists(ALL_PRODUCTS_ZSET_REDIS_KEY))) {
         await cacheAllProducts(redisClient);
     }
-    const finalCursor = cursor ? Number(cursor): 1;
-    const finalLimit = limit ? limit: 100;
-    const productIds = await redisClient.zRangeByScore(ALL_PRODUCTS_ZSET_REDIS_KEY, `(${finalCursor}`, "+inf", { LIMIT: { offset: 0, count: finalLimit } });
+    const finalCursor = cursor ? Number(cursor) : 1;
+    const finalLimit = limit ? limit : 100;
+    const productIds = await redisClient.zRangeByScore(
+        ALL_PRODUCTS_ZSET_REDIS_KEY,
+        `(${finalCursor}`,
+        "+inf",
+        { LIMIT: { offset: 0, count: finalLimit } }
+    );
     const pipeline = redisClient.multi();
-    productIds.forEach(productId => pipeline.json.get(productId));
+    productIds.forEach((productId) => pipeline.json.get(productId));
 
-    return await pipeline.exec() as unknown as ProductResponse;
+    return (await pipeline.exec()) as unknown as ProductResponse;
 };
 
 export const getProductById = async (id: string): Promise<Product> => {
     const redisClient = await getRedisClient();
 
-    if (!await redisClient.exists(ALL_PRODUCTS_ZSET_REDIS_KEY)) {
+    if (!(await redisClient.exists(ALL_PRODUCTS_ZSET_REDIS_KEY))) {
         await cacheAllProducts(redisClient);
     }
 
-    const product = await redisClient.json.get(`gid://shopify/Product/${id}`) as Product | null;
+    const product = (await redisClient.json.get(
+        `gid://shopify/Product/${id}`
+    )) as Product | null;
 
     if (!product) {
         throw new Error("ERROR: Product id not found!");
@@ -131,8 +153,12 @@ export const getProductById = async (id: string): Promise<Product> => {
 
 export const getStats = async (): Promise<ProductStats> => {
     const redisClient = await getRedisClient();
-    const endpointStats = await redisClient.json.get(ENDPOINT_STATS_REDIS_KEY) as EndpointStats | null;
-    const shopifyStats = await redisClient.json.get(SHOPIFY_STATS_REDIS_KEY) as ShopifyStats | null;
+    const endpointStats = (await redisClient.json.get(
+        ENDPOINT_STATS_REDIS_KEY
+    )) as EndpointStats | null;
+    const shopifyStats = (await redisClient.json.get(
+        SHOPIFY_STATS_REDIS_KEY
+    )) as ShopifyStats | null;
 
     if (!endpointStats || !shopifyStats) {
         // TODO: Figure out if this is needed, otherwise make the error message better.

@@ -2,7 +2,10 @@ import express from "express";
 import { productsRouter } from "./routes/products";
 import bodyParser from "body-parser";
 import cors from "cors";
-import {getStatsController, measureAPIStatsMiddleware} from "./controllers/base";
+import {
+    getStatsController,
+    measureAPIStatsMiddleware,
+} from "./controllers/base";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
