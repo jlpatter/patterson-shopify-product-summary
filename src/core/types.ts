@@ -3,7 +3,10 @@ export type ProductZScore = {
     score: number;
 };
 export type ProductResponse = {
-    next_page: number;
+    page_info: {
+        next_page: number;
+        has_next_page: boolean;
+    };
     products: Product[];
 };
 

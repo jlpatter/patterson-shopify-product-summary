@@ -128,14 +128,42 @@ export const getProducts = async (
         "+inf",
         { LIMIT: { offset: 0, count: finalLimit } }
     );
+
+    if (productIdsWithScores.length === 0) {
+        return {
+            page_info: {
+                next_page: 1,
+                has_next_page: true,
+            },
+            products: [],
+        };
+    }
+
+    const nextPage =
+        productIdsWithScores[productIdsWithScores.length - 1].score;
+    const hasNextPage =
+        (
+            await redisClient.zRangeWithScores(
+                ALL_PRODUCTS_ZSET_REDIS_KEY,
+                0,
+                0,
+                { REV: true }
+            )
+        )[0].score > nextPage;
+
+    // Get cached products on this page
     const pipeline = redisClient.multi();
     productIdsWithScores.forEach((productIdsWithScore) =>
         pipeline.json.get(productIdsWithScore.value)
     );
+    const products: Product[] = (await pipeline.exec()) as unknown as Product[];
 
     return {
-        next_page: productIdsWithScores[productIdsWithScores.length - 1].score,
-        products: (await pipeline.exec()) as unknown as Product[],
+        page_info: {
+            next_page: nextPage,
+            has_next_page: hasNextPage,
+        },
+        products: products,
     };
 };
 
