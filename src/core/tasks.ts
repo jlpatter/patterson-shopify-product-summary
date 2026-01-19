@@ -1,50 +1,44 @@
-import { randomUUID } from "crypto";
 import { getRedisClient } from "./redis_client";
 import { LOCK_REDIS_KEY, REDIS_CACHE_LOCK_TTL_MS } from "./constants";
+import { createLock, NodeRedisAdapter, Lock } from "redlock-universal";
 
-const acquireLock = async (): Promise<string | null> => {
-    const redisClient = await getRedisClient();
-    const lockId = randomUUID();
+let lock: Lock | null;
 
-    const result = await redisClient.set(LOCK_REDIS_KEY, lockId, {
-        NX: true,
-        PX: REDIS_CACHE_LOCK_TTL_MS,
-    });
-
-    return result === "OK" ? lockId : null;
-};
-
-const releaseLock = async (lockId: string) => {
-    const redisClient = await getRedisClient();
-    // NOTE: I copied-pasted this from ChatGPT cause it thought Lua would be more atomic.
-    // Will have to research it more later.
-    const lua = `
-    if redis.call("GET", KEYS[1]) == ARGV[1] then
-      return redis.call("DEL", KEYS[1])
-    else
-      return 0
-    end
-  `;
-
-    await redisClient.eval(lua, {
-        keys: [LOCK_REDIS_KEY],
-        arguments: [lockId],
-    });
+const getLock = async () => {
+    // TODO: May want to pass a key in so this can be used for more than just 1 kind of task.
+    if (!lock) {
+        lock = createLock({
+            adapter: new NodeRedisAdapter(await getRedisClient()),
+            key: LOCK_REDIS_KEY,
+            ttl: REDIS_CACHE_LOCK_TTL_MS,
+            // For our use-case, if the lock is already acquired, then the current process
+            // (presumably another node instance) should skip attempting to cache all the products.
+            retryAttempts: 0,
+            retryDelay: 0,
+        });
+    }
+    return lock;
 };
 
 export const lockAndRunTask = async (task: () => Promise<void>) => {
-    const lockId = await acquireLock();
+    // See here for Redis docs on lock stuff: https://redis.io/docs/latest/commands/set/#patterns
+    // Info on Redis distributed locks: https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/
+    // Info on redlock-universal: https://github.com/alexpota/redlock-universal
+    const lock = await getLock();
 
-    if (!lockId) {
-        console.log("Another instance is running the task");
+    let handle;
+    try {
+        handle = await lock.acquire();
+    } catch (_err) {
+        console.log(
+            "Lock not acquired, another process is taking care of this. Skipping..."
+        );
         return;
     }
 
     try {
         await task();
-    } catch (err) {
-        console.error("Task failed", err);
     } finally {
-        await releaseLock(lockId);
+        await lock.release(handle);
     }
 };

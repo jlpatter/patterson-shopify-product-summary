@@ -36,5 +36,7 @@ app.listen(PORT, () => {
 lockAndRunTask(cacheAllProducts).catch(console.error);
 // Continue caching all products occasionally to keep data up to date.
 setInterval(() => {
+    // TODO: Is there a way to keep multiple instances from running this more often if they're spaced out enough?
+    //  E.g. if node_1 runs it at minute '1', but then node_2 runs it at minute '3', it'll run more often. Need to fix.
     lockAndRunTask(cacheAllProducts).catch(console.error);
 }, REDIS_CACHE_ALL_PRODUCTS_INTERVAL);

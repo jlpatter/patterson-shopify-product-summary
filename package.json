@@ -21,7 +21,8 @@
     "body-parser": "^2.2.2",
     "cors": "^2.8.5",
     "express": "^5.2.1",
-    "redis": "^5.10.0"
+    "redis": "^5.10.0",
+    "redlock-universal": "^0.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
