@@ -97,6 +97,7 @@ export const cacheAllProducts = async () => {
         });
         productsZSet.push({
             value: p.id,
+            // TODO: Make scores less index-based.
             score: index + 1,
         });
     });
