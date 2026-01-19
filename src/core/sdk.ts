@@ -99,6 +99,7 @@ export const getProductById = async (id: string): Promise<Product> => {
     )) as Product | null;
 
     if (!product) {
+        // TODO: This should probably be a 404 instead.
         throw new Error("ERROR: Product id not found!");
     }
 
