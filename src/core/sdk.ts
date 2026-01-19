@@ -111,16 +111,29 @@ export const getProductById = async (id: string): Promise<Product> => {
  */
 export const getStats = async (): Promise<ProductStats> => {
     const redisClient = await getRedisClient();
-    const endpointStats = (await redisClient.json.get(
+    let endpointStats = (await redisClient.json.get(
         ENDPOINT_STATS_REDIS_KEY
     )) as EndpointStats | null;
-    const shopifyStats = (await redisClient.json.get(
+    let shopifyStats = (await redisClient.json.get(
         SHOPIFY_STATS_REDIS_KEY
     )) as ShopifyStats | null;
 
-    if (!endpointStats || !shopifyStats) {
-        // TODO: Figure out if this is needed, otherwise make the error message better.
-        throw new Error("ERROR: Stats are missing!");
+    if (!endpointStats) {
+        endpointStats = {
+            endpoint_response_times_ms: {
+                average: NaN,
+                max: NaN,
+                min: NaN,
+            },
+            total_endpoint_calls: 0,
+        };
+    }
+
+    if (!shopifyStats) {
+        shopifyStats = {
+            average_shopify_call_responsetime_ms: NaN,
+            total_shopify_api_calls: 0,
+        };
     }
 
     return {
